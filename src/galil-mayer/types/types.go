@@ -22,7 +22,8 @@ type DiffusionTree struct {
 	Coordinators	[]CoordinatorNode
 }
 
-type MsgType intconst (
+type MsgType int
+const (
 	DIFF_TREE = iota
 	START_PHASE
 	VALUE

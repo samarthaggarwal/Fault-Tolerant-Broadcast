@@ -5,6 +5,14 @@ import (
 	"fmt"
 )
 
+func max(a int, b int) int {
+	if a>=b {
+		return a
+	} else {
+		return b
+	}
+}
+
 type Node struct {
 	Id				int
 	NumNodes		int
@@ -58,7 +66,7 @@ func (n *Node) Execute () {
 				if level == types.Level.Leader {
 					children = append(children, node.Id)
 				} else if node.Id == n.Id {
-					for (j:=max(0,node.FirstChild); j<=node.LastChild; j++) {
+					for j:=max(0,node.FirstChild); j<=node.LastChild; j++ {
 						children = append(children, j)
 					}
 					break

@@ -5,6 +5,7 @@ import (
 	"time"
 	"errors"
 	"math"
+	"fmt"
 )
 
 type Blackbox struct {
@@ -27,7 +28,7 @@ func contains(list []int, elem int) bool {
 	return false
 }
 
-func min(a int, b int) {
+func min(a int, b int) int {
 	if a<=b {
 		return a
 	} else {
@@ -35,7 +36,7 @@ func min(a int, b int) {
 	}
 }
 
-func max(a int, b int) {
+func max(a int, b int) int {
 	if a>=b {
 		return a
 	} else {
@@ -53,19 +54,19 @@ func (b *Blackbox) ReinitialiseDiffusionTree (startIndex int) error {
 	}
 
 	tree.Root = startIndex
-	numCoordinators := math.Ceil(math.Sqrt(n)) - 1
+	numCoordinators := int(math.Ceil(math.Sqrt(float64(n)))) - 1
 	numLeaves := n - 1 - numCoordinators
 	quotient := numLeaves / numCoordinators
 	remainder := numLeaves % numCoordinators
 	firstLeaf := startIndex + numCoordinators + 1
 
-	for (i:=1; i<=numCoordinators; i++) {
+	for i:=1; i<=numCoordinators; i++ {
 		numChildren := quotient
 		if i <= remainder { numChildren++ }
-		coordinator := types.Coordinator{
+		coordinator := types.CoordinatorNode{
 							Id: startIndex+i,
 							FirstChild: firstLeaf,
-							LastChild: firstLeaf + numChildren - 1
+							LastChild: firstLeaf + numChildren - 1,
 						}
 		firstLeaf += numChildren
 		tree.Coordinators = append(tree.Coordinators, coordinator)
@@ -79,8 +80,8 @@ func (b *Blackbox) ReinitialiseDiffusionTree (startIndex int) error {
 }
 
 func (b *Blackbox) Terminate () {
-
-	for recvMsg, ok := <-b.BlackboxCh {
+	for {
+		recvMsg, ok := <-b.MyCh
 		if !ok { break }
 		if recvMsg.MsgType == types.FAILURE {
 			b.DeadNodes = append(b.DeadNodes, recvMsg.Sender)
@@ -90,9 +91,9 @@ func (b *Blackbox) Terminate () {
 	}
 	msg = types.Message{
 				Sender: -1,
-				TypeOfMsg: types.MsgType.TERMINATE
+				TypeOfMsg: types.MsgType.TERMINATE,
 			}
-	for (i:=0; i<b.NumNodes; i++) {
+	for i:=0; i<b.NumNodes; i++ {
 		b.NodeCh[i] <- msg
 	}
 }
@@ -141,7 +142,7 @@ func (b *Blackbox) RecomputeTree (E2 []int) error {
 		coordinator := types.Coordinator{
 							Id: -1,
 							FirstChild: b.CurrentTree.Coordinators[i].FirstChild,
-							LastChild: b.CurrentTree.Coordinators[i].LastChild
+							LastChild: b.CurrentTree.Coordinators[i].LastChild,
 						}
 		coordinator.FirstChild = max(coordinator.FirstChild, firstRecruit + numRecruits)
 		if indexInE2 < len(E2) {
@@ -178,13 +179,13 @@ func (b *Blackbox) SendPhaseStart (phase_id int, sendOnlyToCoordinators bool) {
 	msg = types.Msg{
 				Sender: -1,
 				TypeOfMsg: types.MsgType.START_PHASE,
-				Content: phase_id
+				Content: phase_id,
 			}
 	lastNode := b.NumNodes-1
 	if sendOnlyToCoordinators {
 		lastNode = b.Coordinators[len(b.Coordinators)-1].Id
 	}
-	for (i:=0, i<=lastNode; i++) {
+	for i:=0; i<=lastNode; i++ {
 		b.NodeCh[i] <- msg
 	}
 }
@@ -193,7 +194,7 @@ func (b *Blackbox) Execute () {
 	// Main loop listening to msg on blackbox channel
 
 	b.ReinitialiseDiffusionTree(0)
-	b.DeadNodes := make([]int)
+	b.DeadNodes = make([]int)
 
 	for {
 		L0 = b.CurrentTree.Root
@@ -208,7 +209,7 @@ func (b *Blackbox) Execute () {
 		msg := types.Msg{
 					Sender: -1,
 					TypeOfMsg: types.MsgType.DIFF_TREE,
-					Content: b.CurrentTree
+					Content: b.CurrentTree,
 				}
 		for _, node := range L0UL1 {
 			b.NodeCh[node] <- msg
@@ -225,7 +226,8 @@ func (b *Blackbox) Execute () {
 		time.Sleep(types.SLEEPTIME * time.Millisecond)
 		value := -1
 		E1 := make([]int)
-		for recvMsg, ok := <-b.BlackboxCh {
+		for {
+			recvMsg, ok := <-b.MyCh
 			if !ok { break }
 			if recvMsg.MsgType == types.FAILURE {
 				b.DeadNodes = append(b.DeadNodes, recvMsg.Sender)
@@ -238,7 +240,7 @@ func (b *Blackbox) Execute () {
 		msg = types.Message{
 					Sender: -1,
 					TypeOfMsg: types.MsgType.CHECKPOINT,
-					Content: types.CPmsg{value: value, E: E1}
+					Content: types.CPmsg{value: value, E: E1},
 				}
 		for _, node := range L0UL1 {
 			b.NodeCh[node] <- msg
@@ -252,7 +254,8 @@ func (b *Blackbox) Execute () {
 		b.SendPhaseStart(4, true)
 		time.Sleep(types.SLEEPTIME * time.Millisecond)
 		E2 := make([]int)
-		for recvMsg, ok := <-b.BlackboxCh {
+		for {
+			recvMsg, ok := <-b.MyCh
 			if !ok { break }
 			if recvMsg.MsgType == types.FAILURE {
 				b.DeadNodes = append(b.DeadNodes, recvMsg.Sender)
@@ -263,7 +266,7 @@ func (b *Blackbox) Execute () {
 		msg = types.Message{
 					Sender: -1,
 					TypeOfMsg: types.MsgType.CHECKPOINT,
-					Content: E2
+					Content: E2,
 				}
 		for _, node := range L0UL1 {
 			b.NodeCh[node] <- msg
