@@ -7,6 +7,15 @@ import (
 	"Fault-Tolerant-Agreement/src/galil-mayer/blackbox"
 )
 
+func contains(list []int, elem int) bool {
+	for _, v := range list {
+		if v == elem {
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
 	//fmt.Println("hello world!")
 	//n := node.Node{Id:1234}
@@ -32,7 +41,8 @@ func main() {
 		nodes[i].Initialise(i, numNodes, nodeCh, blackboxCh, outputCh)
 		fmt.Printf("Initialised node with id=%d \n", nodes[i].Get_id())
 	}
-	nodes[0].Value = 1234 // TODO - change to random
+	secret = 1234 // TODO - change to random
+	nodes[0].Value = secret
 
 	// Initialise blackbox
 	god := blackbox.Blackbox{
@@ -50,15 +60,25 @@ func main() {
 	go god.Execute()
 
 	// Wait for outputs
+	values := make([]int{-1}, numNodes)
 	for {
 		msg := <-outputCh
 		if msg.Sender == godId {
-			fmt.Printf("msg.Sender = %d, msg.Content = %s \n", msg.Sender, msg.Content)
+			//fmt.Printf("msg.Sender = %d, msg.Content = %s \n", msg.Sender, msg.Content)
 			break
 		} else {
-			fmt.Printf("msg.Sender = %d, msg.Content = %s \n", msg.Sender, msg.Content)
+			values[msg.Sender] = msg.Content.(int)
+			//fmt.Printf("msg.Sender = %d, msg.Content = %s \n", msg.Sender, msg.Content)
 		}
 	}
+
+	// Sanity Checks - TODO
+	//success := true
+	//for (i:=0; i<numNodes; i++) {
+	//	if contains(b.DeadNodes, i) ||
+	//		values[i] == 
+	//}
+	fmt.Printf("deadNodes:%v\n values:%v\n", god.DeadNodes, values)
 
 	fmt.Println("Exiting main")
 }
