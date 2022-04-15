@@ -1,5 +1,9 @@
 package types
 
+const (
+	SLEEPTIME = 100
+)
+
 type Level int
 const (
 	Leader = iota
@@ -18,16 +22,23 @@ type DiffusionTree struct {
 	Coordinators	[]CoordinatorNode
 }
 
-type MsgType int
-const (
-	type1 = iota
-	// TODO
+type MsgType intconst (
+	DIFF_TREE = iota
+	START_PHASE
+	VALUE
+	CHECKPOINT
+	TERMINATE
+	FAILURE
 )
 
 type Msg struct {
 	Sender			int
 	TypeOfMsg		MsgType
-	Content			string
+	Content			interface{}
 }
 
+type CPmsg struct {
+	Value	int
+	E		[]int
+}
 
