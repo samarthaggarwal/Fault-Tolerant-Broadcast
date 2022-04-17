@@ -12,7 +12,7 @@ func DPrintf(format string, a ...interface{}) (n int, err error) {
 }
 
 const (
-	SLEEPTIME = 100
+	SLEEPTIME = 2000
 )
 
 type Level int

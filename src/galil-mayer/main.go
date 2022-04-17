@@ -6,6 +6,7 @@ import (
 	"Fault-Tolerant-Agreement/src/galil-mayer/types"
 	"fmt"
 	"math"
+	"time"
 	"math/rand"
 	"sort"
 )
@@ -22,13 +23,14 @@ func contains(list []int, elem int) bool {
 func main() {
 
 	// Parameter Selection
-	numNodes := 10000
-	faults := int(float64(numNodes) * 0.9)
+	numNodes := 500
+	faults := numNodes-1 //int(float64(numNodes) * 0.9)
 	failProb := 0.9
 	bufferSize := 20000 // so that sending to channel is unblocking
 	godId := -1
 
 	// Failure nodes
+	rand.Seed(time.Now().UnixNano())
 	perm := rand.Perm(numNodes)
 	failureProbability := make([]float64, numNodes)
 	for i:=0; i<numNodes; i++ {
@@ -87,12 +89,16 @@ func main() {
 		}
 	}
 
-	totalMsgCount := 0
+	honestMsgCount := 0
+	failedMsgCount := 0
 	for i:=0; i<numNodes; i++ {
 		if !contains(god.DeadNodes, i) {
-			totalMsgCount += nodes[i].MsgCount
+			honestMsgCount += nodes[i].MsgCount
+		} else {
+			failedMsgCount += nodes[i].MsgCount
 		}
 	}
+	totalMsgCount := honestMsgCount + failedMsgCount
 	multiplier := float64(totalMsgCount) / (float64(numNodes) + float64(len(god.DeadNodes))*math.Sqrt(float64(numNodes)))
 
 	// Sanity Checks
@@ -123,9 +129,15 @@ func main() {
 
 	sort.Ints(god.DeadNodes)
 
+	msgCount := make([]int, numNodes)
+	for i:=0; i<numNodes; i++ {
+		msgCount[i] = nodes[i].MsgCount
+	}
+
 	//fmt.Printf("deadNodes:%v\n values:%v lenvalues: %d\n", god.DeadNodes, values, len(values))
-	fmt.Printf("deadNodes:%v\nlen(deadNodes):%d\n", god.DeadNodes, len(god.DeadNodes))
-	fmt.Printf("=== Sanity:%v, Liveness:%v, Safety:%v, Validity:%v, totalMsg:%d, multiplier:%f ===\n", liveness&&safety&&validity, liveness, safety, validity, totalMsgCount, multiplier)
+	fmt.Printf("deadNodes:%v\nlen(deadNodes):%d\nmsgCount:%v\n", god.DeadNodes, len(god.DeadNodes), msgCount)
+	//fmt.Printf("len(deadNodes):%d\n", len(god.DeadNodes))
+	fmt.Printf("=== Sanity:%v, Liveness:%v, Safety:%v, Validity:%v, totalMsg:%d, multiplier:%f, value=%d ===\n", liveness&&safety&&validity, liveness, safety, validity, totalMsgCount, multiplier, value)
 
 	if !liveness || !safety || !validity { panic("sanity FAILED") }
 	//fmt.Println("Exiting main")
