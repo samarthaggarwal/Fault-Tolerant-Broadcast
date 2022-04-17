@@ -17,9 +17,6 @@ func contains(list []int, elem int) bool {
 }
 
 func main() {
-	//fmt.Println("hello world!")
-	//n := node.Node{Id:1234}
-	//fmt.Printf("Id = %d\n", n.Get_id())
 
 	// Parameter Selection
 	numNodes := 8
@@ -75,6 +72,13 @@ func main() {
 		}
 	}
 
+	totalMsgCount := 0
+	for i:=0; i<numNodes; i++ {
+		if !contains(god.DeadNodes, i) {
+			totalMsgCount += nodes[i].MsgCount
+		}
+	}
+
 	// Sanity Checks
 	// Liveness
 	liveness := true
@@ -102,7 +106,7 @@ func main() {
 	validity := contains(god.DeadNodes, 0) || value==secret
 
 	fmt.Printf("deadNodes:%v\n values:%v lenvalues: %d\n", god.DeadNodes, values, len(values))
-	fmt.Printf("=== Sanity:%v, Liveness:%v, Safety:%v, Validity:%v ===\n", liveness&&safety&&validity, liveness, safety, validity)
+	fmt.Printf("=== Sanity:%v, Liveness:%v, Safety:%v, Validity:%v, totalMsg:%d ===\n", liveness&&safety&&validity, liveness, safety, validity, totalMsgCount)
 
 	fmt.Println("Exiting main")
 }

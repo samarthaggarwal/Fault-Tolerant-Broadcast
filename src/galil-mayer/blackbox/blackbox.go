@@ -77,7 +77,6 @@ func (b *Blackbox) ReinitialiseDiffusionTree(startIndex int) error {
 
 	fmt.Printf("Reinitialised Tree with startIndex=%d\n", startIndex)
 
-	//return tree
 	b.CurrentTree = tree
 	return nil
 }

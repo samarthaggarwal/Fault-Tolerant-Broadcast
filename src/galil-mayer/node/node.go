@@ -39,12 +39,6 @@ func (n *Node) Get_id() int {
 }
 
 func (n *Node) Execute() {
-	// Main loop listening to msg on the channel of the node
-	//msg := types.Msg{
-	//			Sender: n.Id,
-	//			Content: fmt.Sprintf("hey main from node %d", n.Id),
-	//		}
-	//n.OutputCh <- msg
 
 	tree := types.DiffusionTree{}
 	phase := -1
