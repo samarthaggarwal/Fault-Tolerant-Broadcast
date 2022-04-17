@@ -1,30 +1,43 @@
 package types
 
+import "log"
+
+const debug = 1
+
+func DPrintf(format string, a ...interface{}) (n int, err error) {
+	if debug > 0 {
+		log.Printf(format, a...)
+	}
+	return
+}
+
 const (
 	SLEEPTIME = 100
 )
 
 type Level int
+
 const (
-	Leader = iota
+	Leader Level = iota
 	Coordinator
 	Leaf
 )
 
 type CoordinatorNode struct {
-	Id			int
-	FirstChild	int
-	LastChild	int
+	Id         int
+	FirstChild int
+	LastChild  int
 }
 
 type DiffusionTree struct {
-	Root			int
-	Coordinators	[]CoordinatorNode
+	Root         int
+	Coordinators []CoordinatorNode
 }
 
 type MsgType int
+
 const (
-	DIFF_TREE = iota
+	DIFF_TREE MsgType = iota
 	START_PHASE
 	VALUE
 	CHECKPOINT
@@ -33,13 +46,12 @@ const (
 )
 
 type Msg struct {
-	Sender			int
-	TypeOfMsg		MsgType
-	Content			interface{}
+	Sender    int
+	TypeOfMsg MsgType
+	Content   interface{}
 }
 
 type CPmsg struct {
-	Value	int
-	E		[]int
+	Value int
+	E     []int
 }
-
