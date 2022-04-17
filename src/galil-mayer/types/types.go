@@ -2,7 +2,7 @@ package types
 
 import "log"
 
-const debug = 1
+const debug = 0
 
 func DPrintf(format string, a ...interface{}) (n int, err error) {
 	if debug > 0 {

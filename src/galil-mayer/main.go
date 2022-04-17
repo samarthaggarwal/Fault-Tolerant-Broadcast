@@ -24,7 +24,7 @@ func main() {
 	// Parameter Selection
 	numNodes := 8
 	//faults := 0
-	bufferSize := 10000 // so that sending to channel is unblocking
+	bufferSize := 20000 // so that sending to channel is unblocking
 	godId := -1
 
 	// Initialise all channels
@@ -62,7 +62,7 @@ func main() {
 	// Wait for outputs
 	values := make([]int, numNodes)
 	for i := range values {
-		values[i] = -1
+		values[i] = -2 // -2: unset, -1: default value
 	}
 	for {
 		msg := <-outputCh
@@ -75,13 +75,34 @@ func main() {
 		}
 	}
 
-	// Sanity Checks - TODO
-	//success := true
-	//for (i:=0; i<numNodes; i++) {
-	//	if contains(b.DeadNodes, i) ||
-	//		values[i] ==
-	//}
+	// Sanity Checks
+	// Liveness
+	liveness := true
+	for i:=0; i<numNodes; i++ {
+		if !contains(god.DeadNodes, i) &&
+			values[i] == -2 {
+			liveness = false
+			break
+		}
+	}
+	// Safety
+	safety := true
+	value := -2
+	for i:=0; i<numNodes; i++ {
+		if contains(god.DeadNodes, i) { continue }
+		if value==-2 {
+			value = values[i]
+		}
+		if values[i] != value {
+			safety = false
+			break
+		}
+	}
+	// Validity
+	validity := contains(god.DeadNodes, 0) || value==secret
+
 	fmt.Printf("deadNodes:%v\n values:%v lenvalues: %d\n", god.DeadNodes, values, len(values))
+	fmt.Printf("=== Sanity:%v, Liveness:%v, Safety:%v, Validity:%v ===\n", liveness&&safety&&validity, liveness, safety, validity)
 
 	fmt.Println("Exiting main")
 }

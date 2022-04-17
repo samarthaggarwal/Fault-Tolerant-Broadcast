@@ -221,7 +221,7 @@ func (b *Blackbox) Execute() {
 			Content:   b.CurrentTree,
 		}
 		for _, node := range L0UL1 {
-			fmt.Printf("Sending diff tree to node %d\n", node)
+			types.DPrintf("Sending diff tree to node %d\n", node)
 			b.NodeCh[node] <- msg
 		}
 
