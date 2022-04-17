@@ -174,10 +174,12 @@ func (b *Blackbox) RecomputeTree(E2 []int) error {
 
 	for currRecruit < firstRecruit+numRecruits {
 		// recruit extra coordinators without any children
-		coordinator := types.CoordinatorNode{Id: E2[indexInE2], FirstChild: -1, LastChild: -1}
+		coordinator := types.CoordinatorNode{Id: currRecruit, FirstChild: -1, LastChild: -1}
 		tree.Coordinators = append(tree.Coordinators, coordinator)
 		currRecruit++
 	}
+
+	fmt.Printf("Recomputed Tree with Leader=%d\n", b.CurrentTree.Root)
 
 	b.CurrentTree = tree
 	return nil

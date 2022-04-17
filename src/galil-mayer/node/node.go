@@ -2,6 +2,8 @@ package node
 
 import (
 	"Fault-Tolerant-Agreement/src/galil-mayer/types"
+	"math/rand"
+	"fmt"
 )
 
 func max(a int, b int) int {
@@ -21,10 +23,10 @@ type Node struct {
 	OutputCh   chan types.Msg
 	Value      int
 	MsgCount   int
-	//FailureProbability		float
+	FP			float64
 }
 
-func (n *Node) Initialise(id int, numNodes int, nodeCh []chan types.Msg, blackboxCh chan types.Msg, outputCh chan types.Msg) {
+func (n *Node) Initialise(id int, numNodes int, nodeCh []chan types.Msg, blackboxCh chan types.Msg, outputCh chan types.Msg, fp float64) {
 	n.Id = id
 	n.NumNodes = numNodes
 	n.NodeCh = nodeCh
@@ -32,10 +34,24 @@ func (n *Node) Initialise(id int, numNodes int, nodeCh []chan types.Msg, blackbo
 	n.OutputCh = outputCh
 	n.Value = -1
 	n.MsgCount = 0
+	n.FP = fp
 }
 
 func (n *Node) Get_id() int {
 	return n.Id
+}
+
+func (n *Node) try_failure(location string) bool {
+	if rand.Float64() < n.FP {
+		sendMsg := types.Msg{
+			Sender:    n.Id,
+			TypeOfMsg: types.FAILURE,
+		}
+		n.BlackboxCh <- sendMsg
+		types.DPrintf("Node:%d, failed at %s\n", n.Id, location)
+		return true
+	}
+	return false
 }
 
 func (n *Node) Execute() {
@@ -45,8 +61,9 @@ func (n *Node) Execute() {
 	level := types.Leaf
 	children := make([]int, 0)
 	valueSent := false
+	killed := false
 
-	for {
+	for !killed {
 		types.DPrintf("Waiting for msg node %d\n", n.Id)
 		recvMsg := <-n.NodeCh[n.Id]
 		if recvMsg.TypeOfMsg == types.DIFF_TREE {
@@ -77,10 +94,15 @@ func (n *Node) Execute() {
 						TypeOfMsg: types.VALUE,
 						Content:   n.Value,
 					}
-					for _, child := range children {
+					for i, child := range children {
+						if i==len(children)/2 {
+							killed = n.try_failure("Leader/phase=1")
+							if killed { break }
+						}
 						n.NodeCh[child] <- sendMsg
 						n.MsgCount++
 					}
+					if killed { break }
 					valueSent = true
 				}
 			} else if phase == 2 {
@@ -89,6 +111,8 @@ func (n *Node) Execute() {
 					TypeOfMsg: types.CHECKPOINT,
 					Content:   n.Value,
 				}
+				killed = n.try_failure("Coordinator/phase=2")
+				if killed { break }
 				n.BlackboxCh <- sendMsg
 			} else if phase == 3 {
 				if !valueSent && level == types.Coordinator {
@@ -97,10 +121,15 @@ func (n *Node) Execute() {
 						TypeOfMsg: types.VALUE,
 						Content:   n.Value,
 					}
-					for _, child := range children {
+					for i, child := range children {
+						if i==len(children)/2 {
+							killed = n.try_failure("Coordinator/phase=3")
+							if killed { break }
+						}
 						n.NodeCh[child] <- sendMsg
 						n.MsgCount++
 					}
+					if killed { break }
 					valueSent = true
 				}
 			} else if phase == 4 {
@@ -110,6 +139,8 @@ func (n *Node) Execute() {
 					TypeOfMsg: types.CHECKPOINT,
 					Content:   n.Value,
 				}
+				killed = n.try_failure("Coordinator/phase=4")
+				if killed { break }
 				n.BlackboxCh <- sendMsg
 			}
 
@@ -122,13 +153,21 @@ func (n *Node) Execute() {
 					TypeOfMsg: types.VALUE,
 					Content:   n.Value,
 				}
-				for _, child := range children {
+				for i, child := range children {
+					if i==len(children)/2 {
+						killed = n.try_failure("Coordinator/phase=1")
+						if killed { break }
+					}
 					n.NodeCh[child] <- sendMsg
 					n.MsgCount++
 				}
+				if killed { break }
 				valueSent = true
 			} else if phase == 3 && level != types.Leaf {
 				types.DPrintf("ERROR: non-leaf received value in phase 3\n")
+			} else if level == types.Leaf {
+				killed = n.try_failure(fmt.Sprintf("Leaf/phase%d", phase))
+				if killed { break }
 			}
 		} else if recvMsg.TypeOfMsg == types.CHECKPOINT {
 			cpMsg, ok := recvMsg.Content.(types.CPmsg)

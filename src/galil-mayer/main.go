@@ -5,6 +5,9 @@ import (
 	"Fault-Tolerant-Agreement/src/galil-mayer/node"
 	"Fault-Tolerant-Agreement/src/galil-mayer/types"
 	"fmt"
+	"math"
+	"math/rand"
+	"sort"
 )
 
 func contains(list []int, elem int) bool {
@@ -19,10 +22,22 @@ func contains(list []int, elem int) bool {
 func main() {
 
 	// Parameter Selection
-	numNodes := 8
-	//faults := 0
+	numNodes := 10000
+	faults := int(float64(numNodes) * 0.9)
+	failProb := 0.9
 	bufferSize := 20000 // so that sending to channel is unblocking
 	godId := -1
+
+	// Failure nodes
+	perm := rand.Perm(numNodes)
+	failureProbability := make([]float64, numNodes)
+	for i:=0; i<numNodes; i++ {
+		if i<faults {
+			failureProbability[perm[i]] = failProb
+		} else {
+			failureProbability[perm[i]] = -0.1
+		}
+	}
 
 	// Initialise all channels
 	nodeCh := make([]chan types.Msg, numNodes)
@@ -35,10 +50,10 @@ func main() {
 	// Initialise all nodes
 	nodes := make([]node.Node, numNodes)
 	for i := 0; i < numNodes; i++ {
-		nodes[i].Initialise(i, numNodes, nodeCh, blackboxCh, outputCh)
-		fmt.Printf("Initialised node with id=%d \n", nodes[i].Get_id())
+		nodes[i].Initialise(i, numNodes, nodeCh, blackboxCh, outputCh, failureProbability[i])
+		types.DPrintf("Initialised node with id=%d \n", nodes[i].Get_id())
 	}
-	secret := 1234 // TODO - change to random
+	secret := 1234
 	nodes[0].Value = secret
 
 	// Initialise blackbox
@@ -78,6 +93,7 @@ func main() {
 			totalMsgCount += nodes[i].MsgCount
 		}
 	}
+	multiplier := float64(totalMsgCount) / (float64(numNodes) + float64(len(god.DeadNodes))*math.Sqrt(float64(numNodes)))
 
 	// Sanity Checks
 	// Liveness
@@ -105,8 +121,12 @@ func main() {
 	// Validity
 	validity := contains(god.DeadNodes, 0) || value==secret
 
-	fmt.Printf("deadNodes:%v\n values:%v lenvalues: %d\n", god.DeadNodes, values, len(values))
-	fmt.Printf("=== Sanity:%v, Liveness:%v, Safety:%v, Validity:%v, totalMsg:%d ===\n", liveness&&safety&&validity, liveness, safety, validity, totalMsgCount)
+	sort.Ints(god.DeadNodes)
 
-	fmt.Println("Exiting main")
+	//fmt.Printf("deadNodes:%v\n values:%v lenvalues: %d\n", god.DeadNodes, values, len(values))
+	fmt.Printf("deadNodes:%v\nlen(deadNodes):%d\n", god.DeadNodes, len(god.DeadNodes))
+	fmt.Printf("=== Sanity:%v, Liveness:%v, Safety:%v, Validity:%v, totalMsg:%d, multiplier:%f ===\n", liveness&&safety&&validity, liveness, safety, validity, totalMsgCount, multiplier)
+
+	if !liveness || !safety || !validity { panic("sanity FAILED") }
+	//fmt.Println("Exiting main")
 }
