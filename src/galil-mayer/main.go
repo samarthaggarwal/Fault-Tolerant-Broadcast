@@ -146,8 +146,10 @@ func main() {
 	fmt.Printf("len(deadNodes):%d\n", len(god.DeadNodes))
 	fmt.Printf("=== Sanity:%v, Liveness:%v, Safety:%v, Validity:%v, totalMsg:%d, multiplier:%f, value=%d ===\n", liveness&&safety&&validity, liveness, safety, validity, totalMsgCount, multiplier, value)
 
-	if !liveness || !safety || !validity { panic("sanity FAILED") }
-	//fmt.Println("Exiting main")
+	if !liveness || !safety || !validity {
+		//panic("sanity FAILED")
+		fmt.Printf("ERROR: sanity failed\n")
+	}
 
 	fmt.Fprintf(os.Stderr, "%d,%d,%f,%d,%d,%d,%d,%f\n", numNodes, faults, failProb, len(god.DeadNodes), honestMsgCount, failedMsgCount, totalMsgCount, multiplier)
 }
