@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"Fault-Tolerant-Agreement/src/galil-mayer/blackbox"
 	"Fault-Tolerant-Agreement/src/galil-mayer/node"
 	"Fault-Tolerant-Agreement/src/galil-mayer/types"
@@ -9,6 +10,7 @@ import (
 	"time"
 	"math/rand"
 	"sort"
+	"strconv"
 )
 
 func contains(list []int, elem int) bool {
@@ -22,16 +24,21 @@ func contains(list []int, elem int) bool {
 
 func main() {
 
+	args := os.Args[1:]
+
 	// Parameter Selection
-	numNodes := 500
-	faults := numNodes - 1 //int(float64(numNodes) * 0.3)
-	failProb := 0.9
+	numNodes,_ := strconv.Atoi(args[0]) //500
+	faults,_ := strconv.Atoi(args[1]) //numNodes - 1 //int(float64(numNodes) * 0.3)
+	failProb,_ := strconv.ParseFloat(args[2], 64) //0.1
 	bufferSize := 20000 // so that sending to channel is unblocking
 	godId := -1
 
 	// Failure nodes
 	rand.Seed(time.Now().UnixNano())
 	perm := rand.Perm(numNodes)
+	if rand.Float64() < 0.5 {
+		sort.Ints(perm)
+	}
 	failureProbability := make([]float64, numNodes)
 	for i:=0; i<numNodes; i++ {
 		if i<faults {
@@ -141,4 +148,6 @@ func main() {
 
 	if !liveness || !safety || !validity { panic("sanity FAILED") }
 	//fmt.Println("Exiting main")
+
+	fmt.Fprintf(os.Stderr, "%d,%d,%f,%d,%d,%d,%d,%f\n", numNodes, faults, failProb, len(god.DeadNodes), honestMsgCount, failedMsgCount, totalMsgCount, multiplier)
 }
