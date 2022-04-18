@@ -24,7 +24,7 @@ func main() {
 
 	// Parameter Selection
 	numNodes := 500
-	faults := numNodes-1 //int(float64(numNodes) * 0.9)
+	faults := numNodes - 1 //int(float64(numNodes) * 0.3)
 	failProb := 0.9
 	bufferSize := 20000 // so that sending to channel is unblocking
 	godId := -1
@@ -135,8 +135,8 @@ func main() {
 	}
 
 	//fmt.Printf("deadNodes:%v\n values:%v lenvalues: %d\n", god.DeadNodes, values, len(values))
-	fmt.Printf("deadNodes:%v\nlen(deadNodes):%d\nmsgCount:%v\n", god.DeadNodes, len(god.DeadNodes), msgCount)
-	//fmt.Printf("len(deadNodes):%d\n", len(god.DeadNodes))
+	//fmt.Printf("deadNodes:%v\nlen(deadNodes):%d\nmsgCount:%v\n", god.DeadNodes, len(god.DeadNodes), msgCount)
+	fmt.Printf("len(deadNodes):%d\n", len(god.DeadNodes))
 	fmt.Printf("=== Sanity:%v, Liveness:%v, Safety:%v, Validity:%v, totalMsg:%d, multiplier:%f, value=%d ===\n", liveness&&safety&&validity, liveness, safety, validity, totalMsgCount, multiplier, value)
 
 	if !liveness || !safety || !validity { panic("sanity FAILED") }

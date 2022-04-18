@@ -41,11 +41,12 @@ func (n *Node) Get_id() int {
 	return n.Id
 }
 
-func (n *Node) try_failure(location string) bool {
+func (n *Node) try_failure(location string, content interface{}) bool {
 	if rand.Float64() < n.FP {
 		sendMsg := types.Msg{
 			Sender:    n.Id,
 			TypeOfMsg: types.FAILURE,
+			Content: content,
 		}
 		n.BlackboxCh <- sendMsg
 		types.DPrintf("Node:%d, failed at %s\n", n.Id, location)
@@ -85,10 +86,13 @@ func (n *Node) Execute() {
 					break
 				}
 			}
+			doneMsg := types.Msg{Sender: n.Id, TypeOfMsg: types.DONE}
+			n.BlackboxCh <- doneMsg
 		} else if recvMsg.TypeOfMsg == types.START_PHASE {
 			types.DPrintf("Node:%d, received start phase no: %v\n", n.Id, recvMsg.Content.(int))
 			phase = recvMsg.Content.(int)
 			if phase == 1 {
+				if valueSent { panic("valueSent=true at phase1") }
 				if !valueSent && level == types.Leader {
 					sendMsg := types.Msg{
 						Sender:    n.Id,
@@ -97,7 +101,11 @@ func (n *Node) Execute() {
 					}
 					for i, child := range children {
 						if i==len(children)/2 {
-							killed = n.try_failure("Leader/phase=1")
+							children_sent := make([]int, 0)
+							for j:=0; j<i; j++ {
+								children_sent = append(children_sent, children[j])
+							}
+							killed = n.try_failure("Leader/phase=1", children_sent)
 							if killed { break }
 						}
 						n.NodeCh[child] <- sendMsg
@@ -106,6 +114,8 @@ func (n *Node) Execute() {
 					}
 					if killed { break }
 					valueSent = true
+					doneMsg := types.Msg{Sender: n.Id, TypeOfMsg: types.DONE}
+					n.BlackboxCh <- doneMsg
 				}
 			} else if phase == 2 {
 				sendMsg := types.Msg{
@@ -113,9 +123,11 @@ func (n *Node) Execute() {
 					TypeOfMsg: types.CHECKPOINT,
 					Content:   n.Value,
 				}
-				killed = n.try_failure("Coordinator/phase=2")
+				killed = n.try_failure("Coordinator/phase=2", make([]int, 0))
 				if killed { break }
 				n.BlackboxCh <- sendMsg
+				doneMsg := types.Msg{Sender: n.Id, TypeOfMsg: types.DONE}
+				n.BlackboxCh <- doneMsg
 			} else if phase == 3 {
 				if !valueSent && level == types.Coordinator {
 					sendMsg := types.Msg{
@@ -125,7 +137,7 @@ func (n *Node) Execute() {
 					}
 					for i, child := range children {
 						if i==len(children)/2 {
-							killed = n.try_failure("Coordinator/phase=3")
+							killed = n.try_failure("Coordinator/phase=3", make([]int, 0))
 							if killed { break }
 						}
 						n.NodeCh[child] <- sendMsg
@@ -135,6 +147,10 @@ func (n *Node) Execute() {
 					if killed { break }
 					valueSent = true
 				}
+				if level == types.Coordinator {
+					doneMsg := types.Msg{Sender: n.Id, TypeOfMsg: types.DONE}
+					n.BlackboxCh <- doneMsg
+				}
 			} else if phase == 4 {
 				valueSent = false
 				sendMsg := types.Msg{
@@ -142,9 +158,11 @@ func (n *Node) Execute() {
 					TypeOfMsg: types.CHECKPOINT,
 					Content:   n.Value,
 				}
-				killed = n.try_failure("Coordinator/phase=4")
+				killed = n.try_failure("Coordinator/phase=4", make([]int, 0))
 				if killed { break }
 				n.BlackboxCh <- sendMsg
+				doneMsg := types.Msg{Sender: n.Id, TypeOfMsg: types.DONE}
+				n.BlackboxCh <- doneMsg
 			}
 
 		} else if recvMsg.TypeOfMsg == types.VALUE {
@@ -158,7 +176,7 @@ func (n *Node) Execute() {
 				}
 				for i, child := range children {
 					if i==len(children)/2 {
-						killed = n.try_failure("Coordinator/phase=1")
+						killed = n.try_failure("Coordinator/phase=1", make([]int, 0))
 						if killed { break }
 					}
 					n.NodeCh[child] <- sendMsg
@@ -167,11 +185,15 @@ func (n *Node) Execute() {
 				}
 				if killed { break }
 				valueSent = true
+				doneMsg := types.Msg{Sender: n.Id, TypeOfMsg: types.DONE}
+				n.BlackboxCh <- doneMsg
 			} else if phase == 3 && level != types.Leaf {
-				fmt.Printf("ERROR: non-leaf received value in phase 3\n")
+				fmt.Printf("ERROR: non-leaf %d/%v received value from %d in phase 3\n", n.Id, level, recvMsg.Sender)
 			} else if level == types.Leaf {
-				killed = n.try_failure(fmt.Sprintf("Leaf/phase%d", phase))
+				killed = n.try_failure(fmt.Sprintf("Leaf/phase%d", phase), make([]int, 0))
 				if killed { break }
+			} else if phase == 1 && valueSent && level == types.Coordinator {
+				panic("phase1, level=Coordinator, valueSent=True")
 			}
 		} else if recvMsg.TypeOfMsg == types.CHECKPOINT {
 			cpMsg, ok := recvMsg.Content.(types.CPmsg)
@@ -183,6 +205,8 @@ func (n *Node) Execute() {
 				types.DPrintf("Node:%d, received CHECKPOINT 2 : %v\n", n.Id, recvMsg.Content.([]int))
 				//E2 := msg.Content.([]int)
 			}
+			doneMsg := types.Msg{Sender: n.Id, TypeOfMsg: types.DONE}
+			n.BlackboxCh <- doneMsg
 		} else if recvMsg.TypeOfMsg == types.TERMINATE {
 			types.DPrintf("Node:%d, received TERMINATE : %v\n", n.Id, recvMsg.Content)
 			sendMsg := types.Msg{
@@ -191,6 +215,8 @@ func (n *Node) Execute() {
 				Content:   n.Value,
 			}
 			n.OutputCh <- sendMsg
+			doneMsg := types.Msg{Sender: n.Id, TypeOfMsg: types.DONE}
+			n.BlackboxCh <- doneMsg
 			break
 		}
 	}

@@ -43,6 +43,7 @@ const (
 	CHECKPOINT
 	TERMINATE
 	FAILURE
+	DONE
 )
 
 type Msg struct {

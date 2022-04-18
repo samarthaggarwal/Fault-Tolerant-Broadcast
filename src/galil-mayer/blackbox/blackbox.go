@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"time"
+	//"time"
 )
 
 type Blackbox struct {
@@ -50,8 +50,17 @@ func (b *Blackbox) ReinitialiseDiffusionTree(startIndex int) error {
 	n := b.NumNodes - startIndex
 	tree := types.DiffusionTree{}
 
-	if n < 3 {
+	if n < 2 {
 		return errors.New("cannot create DiffusionTree with <3 nodes")
+	} else if n==2 {
+		tree.Root = startIndex
+		tree.Coordinators = make([]types.CoordinatorNode, 0)
+		coordi := types.CoordinatorNode{Id: startIndex+1, FirstChild:-1, LastChild:-1}
+		tree.Coordinators = append(tree.Coordinators, coordi)
+
+		fmt.Printf("Reinitialised Tree with startIndex=%d\n", startIndex)
+		b.CurrentTree = tree
+		return nil
 	}
 
 	tree.Root = startIndex
@@ -82,19 +91,19 @@ func (b *Blackbox) ReinitialiseDiffusionTree(startIndex int) error {
 }
 
 func (b *Blackbox) Terminate() {
-	noValue := false
-	for !noValue {
-		select {
-		case recvMsg := <-b.MyCh:
-			if recvMsg.TypeOfMsg == types.FAILURE {
-				b.DeadNodes = append(b.DeadNodes, recvMsg.Sender)
-			} else {
-				fmt.Printf("ERROR: Received non-failure msg in Terminate. msg=%v\n", recvMsg)
-			}
-		default:
-			noValue = true
-		}
-	}
+	//noValue := false
+	//for !noValue {
+	//	select {
+	//	case recvMsg := <-b.MyCh:
+	//		if recvMsg.TypeOfMsg == types.FAILURE {
+	//			b.DeadNodes = append(b.DeadNodes, recvMsg.Sender)
+	//		} else {
+	//			fmt.Printf("ERROR: Received non-failure msg in Terminate. msg=%v\n", recvMsg)
+	//		}
+	//	default:
+	//		noValue = true
+	//	}
+	//}
 	msg := types.Msg{
 		Sender:    -1,
 		TypeOfMsg: types.TERMINATE,
@@ -179,7 +188,7 @@ func (b *Blackbox) RecomputeTree(E2 []int) error {
 		currRecruit++
 	}
 
-	fmt.Printf("Recomputed Tree with Leader=%d\n", b.CurrentTree.Root)
+	fmt.Printf("Recomputed Tree with Leader=%d\n", tree.Root)
 
 	b.CurrentTree = tree
 	return nil
@@ -195,9 +204,38 @@ func (b *Blackbox) SendPhaseStart(phase_id int, sendOnlyToCoordinators bool) {
 	if sendOnlyToCoordinators {
 		lastNode = b.CurrentTree.Coordinators[len(b.CurrentTree.Coordinators)-1].Id
 	}
-	for i := 0; i <= lastNode; i++ {
+	//for i := 0; i <= lastNode; i++ {
+	for i := lastNode; i >= 0; i-- {
 		b.NodeCh[i] <- msg
 	}
+}
+
+func (b* Blackbox) WaitFor(receivers []int) {
+	doneReceivers := 0
+	deadReceivers := 0
+	for _, node := range receivers {
+		if contains(b.DeadNodes, node) {
+			deadReceivers++
+		}
+	}
+	for deadReceivers + doneReceivers < len(receivers) {
+		recvMsg := <-b.MyCh
+		if recvMsg.TypeOfMsg == types.FAILURE {
+			b.DeadNodes = append(b.DeadNodes, recvMsg.Sender)
+			if contains(receivers, recvMsg.Sender) {
+				deadReceivers++
+			}
+		} else if recvMsg.TypeOfMsg == types.DONE {
+			if contains(receivers, recvMsg.Sender) {
+				doneReceivers++
+			} else {
+				fmt.Printf("ERROR: blackbox received done from non-receiver:%d\n", recvMsg.Sender)
+			}
+		} else {
+			fmt.Printf("ERROR: blackbox got msg.type=%v from node:%d instead of FAILURE/DONE\n", recvMsg.TypeOfMsg, recvMsg.Sender)
+		}
+	}
+	return
 }
 
 func (b *Blackbox) Execute() {
@@ -205,6 +243,12 @@ func (b *Blackbox) Execute() {
 
 	b.ReinitialiseDiffusionTree(0)
 	b.DeadNodes = make([]int, 0)
+	everyone := make([]int, b.NumNodes)
+	for i:=0; i<b.NumNodes; i++ {
+		everyone[i] = i
+	}
+	var doneReceivers int
+	var deadReceivers int
 
 	for {
 		L0 := b.CurrentTree.Root
@@ -226,39 +270,106 @@ func (b *Blackbox) Execute() {
 			b.NodeCh[node] <- msg
 		}
 
+		b.WaitFor(L0UL1)
 		// send roundStart msg to all at the start of each round
 
 		// p1
 		b.SendPhaseStart(1, false)
-		time.Sleep(types.SLEEPTIME * time.Millisecond)
+		//time.Sleep(types.SLEEPTIME * time.Millisecond)
+		//b.WaitFor(everyone)
+
+		// wait for root, then wait for coordinators to which root has sent value
+		doneReceiversList := make([]int, 0)
+		waitForReceivers := make([]int, 0)
+		for !contains(b.DeadNodes, L0) && !contains(doneReceiversList, L0) {
+			recvMsg := <-b.MyCh
+			if recvMsg.TypeOfMsg == types.FAILURE {
+				b.DeadNodes = append(b.DeadNodes, recvMsg.Sender)
+				if recvMsg.Sender == L0 {
+					temp := recvMsg.Content.([]int)
+					for _, elem := range temp {
+						waitForReceivers = append(waitForReceivers, elem)
+					}
+				}
+			} else if recvMsg.TypeOfMsg == types.DONE {
+				if recvMsg.Sender == L0 {
+					for _, node := range L1 {
+						waitForReceivers = append(waitForReceivers, node.Id)
+					}
+				}
+				if contains(L0UL1, recvMsg.Sender) {
+					doneReceiversList = append(doneReceiversList, recvMsg.Sender)
+				} else {
+					fmt.Printf("ERROR: blackbox received done from non-receiver:%d\n", recvMsg.Sender)
+				}
+			} else {
+				fmt.Printf("ERROR: blackbox got msg.type=%v from node:%d instead of FAILURE/DONE\n", recvMsg.TypeOfMsg, recvMsg.Sender)
+			}
+		}
+		pendingReceivers := make([]int, 0)
+		for _,node := range waitForReceivers {
+			if !contains(doneReceiversList, node) {
+				pendingReceivers = append(pendingReceivers, node)
+			}
+		}
+		b.WaitFor(pendingReceivers)
 
 		// p2, we have E1
 		b.SendPhaseStart(2, true)
-		time.Sleep(types.SLEEPTIME * time.Millisecond)
+		//time.Sleep(types.SLEEPTIME * time.Millisecond)
 		value := -1
 		E1 := make([]int, 0)
 
-		noValue := false
-		for !noValue {
-			types.DPrintf("Blackbox waiting for msg\n")
-			var recvMsg types.Msg
-
-			select {
-			case recvMsg = <-b.MyCh:
-				types.DPrintf("Blackbox recevied  msg %v %v \n", recvMsg.TypeOfMsg, recvMsg.Sender)
-
-				if recvMsg.TypeOfMsg == types.FAILURE {
-					b.DeadNodes = append(b.DeadNodes, recvMsg.Sender)
-				} else if recvMsg.TypeOfMsg == types.CHECKPOINT {
-					E1 = append(E1, recvMsg.Sender)
-					recv_value := recvMsg.Content.(int)
-					value = max(value, recv_value)
-				}
-			default:
-				types.DPrintf("Blackbox recv channel no value")
-				noValue = true
+		doneReceivers = 0
+		deadReceivers = 0
+		for _, node := range L0UL1 {
+			if contains(b.DeadNodes, node) {
+				deadReceivers++
 			}
 		}
+		for deadReceivers + doneReceivers < len(L0UL1) {
+			recvMsg := <-b.MyCh
+			if recvMsg.TypeOfMsg == types.FAILURE {
+				b.DeadNodes = append(b.DeadNodes, recvMsg.Sender)
+				if contains(L0UL1, recvMsg.Sender) {
+					deadReceivers++
+				}
+			} else if recvMsg.TypeOfMsg == types.DONE {
+				if contains(L0UL1, recvMsg.Sender) {
+					doneReceivers++
+				} else {
+					fmt.Printf("ERROR: blackbox received done from non-receiver:%d\n", recvMsg.Sender)
+				}
+			} else if recvMsg.TypeOfMsg == types.CHECKPOINT {
+				E1 = append(E1, recvMsg.Sender)
+				recv_value := recvMsg.Content.(int)
+				value = max(value, recv_value)
+			} else {
+				fmt.Printf("ERROR: blackbox got msg.type=%v from node:%d instead of FAILURE/DONE/CHECKPOINT\n", recvMsg.TypeOfMsg, recvMsg.Sender)
+			}
+		}
+
+		//noValue := false
+		//for !noValue {
+		//	types.DPrintf("Blackbox waiting for msg\n")
+		//	var recvMsg types.Msg
+
+		//	select {
+		//	case recvMsg = <-b.MyCh:
+		//		types.DPrintf("Blackbox recevied  msg %v %v \n", recvMsg.TypeOfMsg, recvMsg.Sender)
+
+		//		if recvMsg.TypeOfMsg == types.FAILURE {
+		//			b.DeadNodes = append(b.DeadNodes, recvMsg.Sender)
+		//		} else if recvMsg.TypeOfMsg == types.CHECKPOINT {
+		//			E1 = append(E1, recvMsg.Sender)
+		//			recv_value := recvMsg.Content.(int)
+		//			value = max(value, recv_value)
+		//		}
+		//	default:
+		//		types.DPrintf("Blackbox recv channel no value")
+		//		noValue = true
+		//	}
+		//}
 
 		sort.Ints(E1)
 		msg = types.Msg{
@@ -269,28 +380,61 @@ func (b *Blackbox) Execute() {
 		for _, node := range L0UL1 {
 			b.NodeCh[node] <- msg
 		}
+		b.WaitFor(L0UL1)
 
 		// p3
 		b.SendPhaseStart(3, false)
-		time.Sleep(types.SLEEPTIME * time.Millisecond)
+		//time.Sleep(types.SLEEPTIME * time.Millisecond)
+		L1nodes := make([]int, 0)
+		for _,node := range L1 {
+			L1nodes = append(L1nodes, node.Id)
+		}
+		b.WaitFor(L1nodes)
 
 		// p4, we have E2 (assumption: E2 is sorted)
 		b.SendPhaseStart(4, true)
-		time.Sleep(types.SLEEPTIME * time.Millisecond)
+		//time.Sleep(types.SLEEPTIME * time.Millisecond)
 		E2 := make([]int, 0)
-		noValue = false
-		for !noValue {
-			select {
-			case recvMsg := <-b.MyCh:
-				if recvMsg.TypeOfMsg == types.FAILURE {
-					b.DeadNodes = append(b.DeadNodes, recvMsg.Sender)
-				} else if recvMsg.TypeOfMsg == types.CHECKPOINT {
-					E2 = append(E2, recvMsg.Sender)
-				}
-			default:
-				noValue = true
+
+		doneReceivers = 0
+		deadReceivers = 0
+		for _, node := range L0UL1 {
+			if contains(b.DeadNodes, node) {
+				deadReceivers++
 			}
 		}
+		for deadReceivers + doneReceivers < len(L0UL1) {
+			recvMsg := <-b.MyCh
+			if recvMsg.TypeOfMsg == types.FAILURE {
+				b.DeadNodes = append(b.DeadNodes, recvMsg.Sender)
+				if contains(L0UL1, recvMsg.Sender) {
+					deadReceivers++
+				}
+			} else if recvMsg.TypeOfMsg == types.DONE {
+				if contains(L0UL1, recvMsg.Sender) {
+					doneReceivers++
+				} else {
+					fmt.Printf("ERROR: blackbox received done from non-receiver:%d\n", recvMsg.Sender)
+				}
+			} else if recvMsg.TypeOfMsg == types.CHECKPOINT {
+				E2 = append(E2, recvMsg.Sender)
+			} else {
+				fmt.Printf("ERROR: blackbox got msg.type=%v from node:%d instead of FAILURE/DONE/CHECKPOINT\n", recvMsg.TypeOfMsg, recvMsg.Sender)
+			}
+		}
+		//noValue = false
+		//for !noValue {
+		//	select {
+		//	case recvMsg := <-b.MyCh:
+		//		if recvMsg.TypeOfMsg == types.FAILURE {
+		//			b.DeadNodes = append(b.DeadNodes, recvMsg.Sender)
+		//		} else if recvMsg.TypeOfMsg == types.CHECKPOINT {
+		//			E2 = append(E2, recvMsg.Sender)
+		//		}
+		//	default:
+		//		noValue = true
+		//	}
+		//}
 
 		sort.Ints(E2)
 		msg = types.Msg{
@@ -301,6 +445,7 @@ func (b *Blackbox) Execute() {
 		for _, node := range L0UL1 {
 			b.NodeCh[node] <- msg
 		}
+		b.WaitFor(L0UL1)
 
 		// check for termination, else start p5
 		terminate := true
@@ -310,10 +455,13 @@ func (b *Blackbox) Execute() {
 				break
 			}
 		}
+		if len(E2)==0 && L1[len(L1)-1].Id + 1 > b.NumNodes - 2 {
+			terminate = true // terminate if <2 nodes are alive
+		}
 
 		if terminate {
 			// wait for nodes failures if any
-			time.Sleep(types.SLEEPTIME * time.Millisecond)
+			//time.Sleep(types.SLEEPTIME * time.Millisecond)
 			b.Terminate()
 			break
 		} else if len(E2) == 0 {
@@ -323,7 +471,8 @@ func (b *Blackbox) Execute() {
 		}
 	}
 
-	time.Sleep(2 * time.Second)
+	//time.Sleep(2 * time.Second)
+	b.WaitFor(everyone)
 	msg := types.Msg{
 		Sender:    b.Id,
 		TypeOfMsg: types.TERMINATE,
