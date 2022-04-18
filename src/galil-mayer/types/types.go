@@ -11,10 +11,6 @@ func DPrintf(format string, a ...interface{}) (n int, err error) {
 	return
 }
 
-const (
-	SLEEPTIME = 2000
-)
-
 type Level int
 
 const (
