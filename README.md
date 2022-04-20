@@ -8,7 +8,7 @@ This implementation is done as part of a course project for the graduate-level c
 The final project report can be found [here](http://link_to_report).
 
 ## Description of Modules
-### Main (Central server)
+### Main
 + Initialisation of nodes and blackbox
 + During initialisation, it choose a random subset of atmost f nodes and sets a non-zero probability of failure for them.
 + Sanity Checks
@@ -41,8 +41,8 @@ Example: ```go run src/main.go 500 400 0.9```
 + `scripts/expt.sh` - Bash script to run large scale experiments to generate empirical data. \
     Running Instructions: 
     ```./scripts/expt.sh csvfile logdir``` \
-    `csvfile` : Output CSV file for recording the experiment data. Note that the `csvfile` should not already exist. This is done to prevent an existing csv from being accidentally overwritten. \
-    `logdir` : Directory in which error logs from the experiment are stored. Note that only the logs of the experiments indicating any error are saved. The logs of the successful experiments are overwritten to optimise space. 
+    `csvfile` : output CSV file for recording the experiment data. Note that the `csvfile` should not already exist. This is done to prevent an existing csv from being accidentally overwritten. \
+    `logdir` : directory in which error logs from the experiment are stored. Note that only the logs of the experiments indicating any error are saved. The logs of the successful experiments are overwritten to optimise space. 
 + `scripts/analyse.py` - Python script to compare the performance of Galil-Mayer-Yung algorithm with Dolev-Strong algorithm. It plots the      graphs for multiple settings and saves them to the `plots` directory.
 
 ## Message Complexity
