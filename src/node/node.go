@@ -1,7 +1,7 @@
 package node
 
 import (
-	"Fault-Tolerant-Agreement/src/galil-mayer/types"
+	"Fault-Tolerant-Agreement/src/types"
 	"math/rand"
 	"fmt"
 )

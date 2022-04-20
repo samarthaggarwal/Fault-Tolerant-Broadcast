@@ -21,6 +21,7 @@ num_trials=20
 logidx=0
 logfile=${LOGDIR}/${logidx}.log
 
+date
 echo "range_n=${range_n[@]}"
 echo "range_p=${range_p[@]}"
 echo "num_trials=${num_trials}"
@@ -35,10 +36,10 @@ for n in ${range_n[@]}; do
 	for f in ${range_f[@]}; do
 		for p in ${range_p[@]}; do
 			for try in $(seq ${num_trials}); do
-				#echo "go run main.go $n $f $p"
+				#echo "go run src/main.go $n $f $p"
 				echo "n=${n},f=${f},p=${p},try=${try}"
 				echo "#### n=${n},f=${f},p=${p},try=${try} ####" > $logfile
-				go run main.go $n $f $p >> $logfile 2>>$CSVFILE
+				go run src/main.go $n $f $p >> $logfile 2>>$CSVFILE
 
 				# check if log has error
 				grep -iq ERROR $logfile
@@ -50,4 +51,6 @@ for n in ${range_n[@]}; do
 		done
 	done
 done
+
+date
 

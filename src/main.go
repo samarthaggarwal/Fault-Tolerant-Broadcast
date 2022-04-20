@@ -2,9 +2,9 @@ package main
 
 import (
 	"os"
-	"Fault-Tolerant-Agreement/src/galil-mayer/blackbox"
-	"Fault-Tolerant-Agreement/src/galil-mayer/node"
-	"Fault-Tolerant-Agreement/src/galil-mayer/types"
+	"Fault-Tolerant-Agreement/src/blackbox"
+	"Fault-Tolerant-Agreement/src/node"
+	"Fault-Tolerant-Agreement/src/types"
 	"fmt"
 	"math"
 	"time"
