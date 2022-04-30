@@ -16,4 +16,5 @@
 
 **/Session.vim
 **/*.swp
+.DS_Store
 

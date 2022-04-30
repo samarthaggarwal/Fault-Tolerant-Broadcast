@@ -2,6 +2,7 @@
 
 CSVFILE=$1 #"expt.csv"
 LOGDIR=$2
+WORSTCASE=1
 
 if [ $# -ne 2 ]; then
 	echo "Run Instructions: $0 <csvfile> <logdir>"
@@ -16,8 +17,13 @@ mkdir -p $LOGDIR
 
 # range
 range_n=($(seq 5 5 45) $(seq 50 50 450) $(seq 500 100 900) $(seq 1000 1000 10000))
-range_p=($(seq 0 0.1 0.99))
-num_trials=20
+if [ $WORSTCASE -eq 1 ]; then
+	range_p=(1)
+	num_trials=10
+else
+	range_p=($(seq 0 0.1 0.99))
+	num_trials=20
+fi
 logidx=0
 logfile=${LOGDIR}/${logidx}.log
 
@@ -31,8 +37,12 @@ echo "numNodes,maxFaults,failProb,realFaults,honestMsgCount,failedMsgCount,total
 
 for n in ${range_n[@]}; do
 	#range_f=$(seq 0 1 $n)
-	range_f=(0 1 2 `let "y=n/4"; echo $y` `let "y=n/2"; echo $y` `let "y=3*n/4"; echo $y` `let "y=n-1"; echo $y`)
-	range_f=($(echo ${range_f[@]} | tr ' ' '\n' | sort | uniq | tr '\n' ' '))
+	if [ $WORSTCASE -eq 1 ]; then
+		range_f=(`let "y=n-1"; echo $y`)
+	else
+		range_f=(0 1 2 `let "y=n/4"; echo $y` `let "y=n/2"; echo $y` `let "y=3*n/4"; echo $y` `let "y=n-1"; echo $y`)
+		range_f=($(echo ${range_f[@]} | tr ' ' '\n' | sort | uniq | tr '\n' ' '))
+	fi
 	for f in ${range_f[@]}; do
 		for p in ${range_p[@]}; do
 			for try in $(seq ${num_trials}); do
