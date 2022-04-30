@@ -3,6 +3,7 @@ package types
 import "log"
 
 const debug = 0
+const Runworstcase = true
 
 func DPrintf(format string, a ...interface{}) (n int, err error) {
 	if debug > 0 {
