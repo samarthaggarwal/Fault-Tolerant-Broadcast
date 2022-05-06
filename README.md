@@ -1,4 +1,4 @@
-# Fault-Tolerant-Agreement
+# Fault-Tolerant-Broadcast
 Implementation of the [**Galil-Mayer-Yung**](https://ieeexplore.ieee.org/abstract/document/492674) algorithm for Crash Fault Tolerant Broadcast with linear message complexity.
 
 We also compare the performance (message complexity) of the GMY algorithm against [Dolev-Strong Algorithm](https://www.semanticscholar.org/paper/Authenticated-Algorithms-for-Byzantine-Agreement-Dolev-Strong/38c830bf6192d9e83cf6793d01c54032b63bb8f8).
