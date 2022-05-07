@@ -5,7 +5,7 @@ We also compare the performance (message complexity) of the GMY algorithm agains
 
 ## Details
 This implementation is done as part of a course project for the graduate-level course 'Fault Tolerant Distributed Algorithms (CS598FTD)' taught by [**Prof. Ling Ren**](https://sites.google.com/view/renling). \
-The final project report can be found [here](http://link_to_report).
+The final project report can be found [here](report.pdf).
 
 ## Description of Modules
 ### Main
